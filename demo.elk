@@ -1,2 +1,7 @@
-define x 123
-+ 2 123
+# This really workds lol
+
+define string 'Hello World'
+define x NIL
++= x 2
++= 2 x
+/= x 2

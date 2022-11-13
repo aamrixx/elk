@@ -3,12 +3,20 @@ const fs = require("fs");
 const TokenKind = {
     Iden: "Iden",
     Num: "Num",
+    True: "True",
+    False: "False",
+    String: "String",
+    Nil: "Nil",
 
     Define: "Define",
 
+    AddEq: "+=",
     Add: '+',
+    SubEq: "-=",
     Sub: '-',
+    MulEq: "*=",
     Mul: '*',
+    DivEq: "/=",
     Div: '/'
 };
 
@@ -32,6 +40,10 @@ class Lexer {
         return this.line[this.pos];
     }
 
+    #get_next_char() {
+        return this.line[this.pos + 1];
+    }
+
     #lex_symbol(c) {
         if (typeof(c) != "string") {
             throw "lex_symbol expected a string";
@@ -39,13 +51,43 @@ class Lexer {
 
         switch (c) {
             case '+':
-                return new Token(TokenKind.Add, "+");
+                if (this.#get_next_char() == '=') {
+                    this.#advance();
+                    return new Token(TokenKind.AddEq, "+=");
+                } else {
+                    return new Token(TokenKind.Add, "+");
+                }
             case '-':
-                return new Token(TokenKind.Sub, "-");
+                if (this.#get_next_char() == '=') {
+                    this.#advance();
+                    return new Token(TokenKind.SubEq, "-=");
+                } else {
+                    return new Token(TokenKind.Sub, "-");
+                }
             case '*':
-                return new Token(TokenKind.Mul, "*");
+                if (this.#get_next_char() == '=') {
+                    this.#advance();
+                    return new Token(TokenKind.MulEq, "*=");
+                } else {
+                    return new Token(TokenKind.Mul, "*");
+                }
             case '/':
-                return new Token(TokenKind.Div, "/");
+                if (this.#get_next_char() == '=') {
+                    this.#advance();
+                    return new Token(TokenKind.DivEq, "/=");
+                } else {
+                    return new Token(TokenKind.Div, "/");
+                }
+            case '\'':
+                let buffer = "";
+                this.#advance();
+
+                while (this.pos < this.line.length && this.#get_char() != '\'') {
+                    buffer += this.#get_char();
+                    this.#advance();
+                }
+
+                return new Token(TokenKind.String, buffer);
             default:
                 return new Token(null, "");
         }
@@ -59,6 +101,12 @@ class Lexer {
         switch (s) {
             case "":
                 return new Token(null, "");
+            case "TRUE":
+                return new Token(TokenKind.True, "TRUE");
+            case "FALSE":
+                return new Token(TokenKind.True, "FALSE");
+            case "NIL":
+                return new Token(TokenKind.Nil, "NIL");
             case "define":
                 return new Token(TokenKind.Define, "define");
             default:
@@ -72,6 +120,10 @@ class Lexer {
 
     lex() {
         while (this.pos < this.line.length) {
+            if (this.#get_char() == '#') {
+                break;
+            }
+
             let token = this.#lex_symbol(this.#get_char());
 
             if (token.kind != null) {
@@ -96,28 +148,132 @@ class Lexer {
     }
 }
 
+function Variable(type, data) {
+    this.type = type;
+    this.data = data;
+}
+let GlobalVarMap = new Map();
+
 class Parser {
     constructor(tokens) {
         this.tokens = tokens;
     }
 
     #parse_math() {
-        if (this.tokens.length !== 3) {
+        if (this.tokens.length != 3) {
             throw "Invalid maths expression";
         }
 
-        if (this.tokens[1].kind !== TokenKind.Num ||
-            this.tokens[2].kind !== TokenKind.Num) {
-            throw "Invalid number in maths expression";
+        if (this.tokens[1].kind != TokenKind.Num ||
+            this.tokens[2].kind != TokenKind.Num 
+        ) {
+            if (this.tokens[1].kind != TokenKind.Iden &&
+                this.tokens[2].kind != TokenKind.Iden
+            ) {
+                throw "Invalid number/identifer in maths expression";
+            }
+        }
+
+        if (this.tokens[1].kind == TokenKind.Iden) {
+            const variable = GlobalVarMap.get(this.tokens[1].literal);
+
+            if (variable == null) {
+                throw "Undefined variable";
+            }
+
+            if (variable.type != TokenKind.Num) {
+                throw "Mismatched types";
+            }
+
+            this.tokens[1] = new Token(variable.type, variable.data);
+        }
+
+        if (this.tokens[2].kind == TokenKind.Iden) {
+            const variable = GlobalVarMap.get(this.tokens[2].literal);
+
+            if (variable == null) {
+                throw "Undefined variable";
+            }
+
+            if (variable.type != TokenKind.Num) {
+                throw "Mismatched types";
+            }
+
+            this.tokens[2] = new Token(variable.type, variable.data);
+        }
+    }
+
+    #parse_math_eq() {
+        if (this.tokens.length != 3) {
+            throw "Invalid maths assignment expression";
+        }
+
+        if (this.tokens[1].kind != TokenKind.Iden ||
+            this.tokens[2].kind != TokenKind.Num 
+        ) {
+            if (this.tokens[2].kind != TokenKind.Iden) {
+                throw "Invalid number/identifer in maths assignment expression";
+            }
+        }
+
+        if (this.tokens[1].kind == TokenKind.Iden) {
+            const variable = GlobalVarMap.get(this.tokens[1].literal);
+        
+            if (variable == null) {
+                throw "Undefined variable";
+            }
+
+            if (variable.type != this.tokens[2].kind) {
+                throw "Mistmatched types";
+            }
+        } else if (this.tokens[2].kind == TokenKind.Iden) {
+            const variable = GlobalVarMap.get(this.tokens[2].literal);
+
+            if (variable == null) {
+                throw "Undefined variable";
+            }
+
+            if (variable.type != this.tokens[1].kind) {
+                throw "Mistmatched types";
+            }
         }
     }
 
     #parse_define() {
+        if (this.tokens.length !== 3) {
+            throw "Invalid define statement";
+        }
 
+        if (this.tokens[1].kind != TokenKind.Iden) {
+            throw "Invalid name for define statement";
+        }
+
+        if (this.tokens[2].kind != TokenKind.Num &&
+            this.tokens[2].kind != TokenKind.True &&
+            this.tokens[2].kind != TokenKind.False &&
+            this.tokens[2].kind != TokenKind.String &&
+            this.tokens[2].kind != TokenKind.Nil
+        ) {
+            throw "Invalid data given";
+        }
+
+        if (this.tokens[2].kind != TokenKind.Nil) {
+            GlobalVarMap.set(this.tokens[1].literal, new Variable(this.tokens[2].kind, this.tokens[2].literal));
+        } else {
+            GlobalVarMap.set(this.tokens[1].literal, new Variable(TokenKind.Num, "0"));
+        }
+
+        console.log(GlobalVarMap);
     }
 
     parse() {
+        if (this.tokens.length == 0) {
+            return;
+        }
+
         switch (this.tokens[0].kind) {
+            case TokenKind.Print:
+
             case TokenKind.Define:
                 this.#parse_define();
                 break;
@@ -126,6 +282,12 @@ class Parser {
             case TokenKind.Mul:
             case TokenKind.Div:
                 this.#parse_math();    
+                break; 
+            case TokenKind.AddEq:
+            case TokenKind.SubEq:
+            case TokenKind.MulEq:
+            case TokenKind.DivEq:
+                this.#parse_math_eq();    
                 break; 
         }
     }
@@ -136,8 +298,8 @@ class Interpreter {
         this.tokens = tokens;
     }
 
-    interpret() {
-        switch (this.tokens[0].kind) {
+    #interpret_math() {
+        switch (this.tokens[0].kind) {                
             case TokenKind.Add:
                 console.log(+this.tokens[1].literal + +this.tokens[2].literal);
                 break;
@@ -149,6 +311,73 @@ class Interpreter {
                 break;
             case TokenKind.Div:
                 console.log(+this.tokens[1].literal / +this.tokens[2].literal);
+                break;
+        }
+    }
+
+    #interpret_math_eq() {
+        let name_index = 0;
+        let num_index = 0;
+        let variable = null;
+
+        if (this.tokens[1].kind == TokenKind.Iden) {
+            variable = GlobalVarMap.get(this.tokens[1].literal);
+            name_index = 1;
+            num_index = 2;
+        } else {
+            variable = GlobalVarMap.get(this.tokens[2].literal);
+            name_index = 2;
+            num_index = 1;
+        }
+
+        switch (this.tokens[0].kind) {                
+            case TokenKind.AddEq:
+                GlobalVarMap.set(this.tokens[name_index].literal, 
+                    new Variable(TokenKind.Num, 
+                                (+this.tokens[num_index].literal + 
+                                 +variable.data).toString()));
+                break;
+            case TokenKind.SubEq:
+                GlobalVarMap.set(this.tokens[name_index].literal, 
+                    new Variable(TokenKind.Num, 
+                                (+this.tokens[num_index].literal - 
+                                 +variable.data).toString()));
+                break;
+            case TokenKind.MulEq:
+                GlobalVarMap.set(this.tokens[name_index].literal, 
+                    new Variable(TokenKind.Num, 
+                                 (+this.tokens[num_index].literal * 
+                                  +variable.data).toString()));
+                break;
+            case TokenKind.DivEq:
+                GlobalVarMap.set(this.tokens[name_index].literal, 
+                    new Variable(TokenKind.Num, 
+                                 (+variable.data /
+                                  +this.tokens[num_index].literal).toString()));
+                break;
+        }
+
+        console.log(GlobalVarMap)
+    }
+
+    interpret() {
+        if (this.tokens.length == 0) {
+            return;
+        }
+
+        switch (this.tokens[0].kind) {
+            case TokenKind.AddEq:
+            case TokenKind.SubEq:
+            case TokenKind.MulEq:
+            case TokenKind.DivEq:
+                this.#interpret_math_eq();
+                break;
+                
+            case TokenKind.Add:
+            case TokenKind.Sub:
+            case TokenKind.Mul:
+            case TokenKind.Div:
+                this.#interpret_math();
                 break;
         }
     }
