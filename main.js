@@ -216,7 +216,9 @@ class Parser {
             }
         }
 
-        if (this.tokens[1].kind == TokenKind.Iden) {
+        if (this.tokens[1].kind == TokenKind.Iden && 
+            this.tokens[2].kind == TokenKind.Num
+        ) {
             const variable = GlobalVarMap.get(this.tokens[1].literal);
         
             if (variable == null) {
@@ -226,16 +228,21 @@ class Parser {
             if (variable.type != this.tokens[2].kind) {
                 throw "Mistmatched types";
             }
-        } else if (this.tokens[2].kind == TokenKind.Iden) {
-            const variable = GlobalVarMap.get(this.tokens[2].literal);
+        } else if (this.tokens[1].kind == TokenKind.Iden && 
+                   this.tokens[2].kind == TokenKind.Iden
+        ) {
+            const variable0 = GlobalVarMap.get(this.tokens[1].literal);
+            const variable1 = GlobalVarMap.get(this.tokens[2].literal);
 
-            if (variable == null) {
+            if (variable0 == null || variable1 == null) {
                 throw "Undefined variable";
             }
 
-            if (variable.type != this.tokens[1].kind) {
+            if (variable0.type != variable1.type) {
                 throw "Mistmatched types";
             }
+        } else {
+            throw "Invalid maths assignment expression";
         }
     }
 
@@ -316,45 +323,68 @@ class Interpreter {
     }
 
     #interpret_math_eq() {
-        let name_index = 0;
-        let num_index = 0;
-        let variable = null;
+        if (this.tokens[1].kind == TokenKind.Iden &&
+            this.tokens[2].kind == TokenKind.Iden
+        ) {
+            const variable0 = GlobalVarMap.get(this.tokens[1].literal);
+            const variable1 = GlobalVarMap.get(this.tokens[2].literal);
 
-        if (this.tokens[1].kind == TokenKind.Iden) {
-            variable = GlobalVarMap.get(this.tokens[1].literal);
-            name_index = 1;
-            num_index = 2;
+            switch (this.tokens[0].kind) {                
+                case TokenKind.AddEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable0.data +
+                                    +variable1.data).toString()));
+                    break;
+                case TokenKind.SubEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable0.data -
+                                    +variable1.data).toString()));
+                    break;
+                case TokenKind.MulEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable0.data *
+                                    +variable1.data).toString()));
+                    break;
+                case TokenKind.DivEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable0.data /
+                                    +variable1.data).toString()));
+                    break;
+            }
+            
         } else {
-            variable = GlobalVarMap.get(this.tokens[2].literal);
-            name_index = 2;
-            num_index = 1;
-        }
+            const variable = GlobalVarMap.get(this.tokens[1].literal);
 
-        switch (this.tokens[0].kind) {                
-            case TokenKind.AddEq:
-                GlobalVarMap.set(this.tokens[name_index].literal, 
-                    new Variable(TokenKind.Num, 
-                                (+this.tokens[num_index].literal + 
-                                 +variable.data).toString()));
-                break;
-            case TokenKind.SubEq:
-                GlobalVarMap.set(this.tokens[name_index].literal, 
-                    new Variable(TokenKind.Num, 
-                                (+this.tokens[num_index].literal - 
-                                 +variable.data).toString()));
-                break;
-            case TokenKind.MulEq:
-                GlobalVarMap.set(this.tokens[name_index].literal, 
-                    new Variable(TokenKind.Num, 
-                                 (+this.tokens[num_index].literal * 
-                                  +variable.data).toString()));
-                break;
-            case TokenKind.DivEq:
-                GlobalVarMap.set(this.tokens[name_index].literal, 
-                    new Variable(TokenKind.Num, 
-                                 (+variable.data /
-                                  +this.tokens[num_index].literal).toString()));
-                break;
+            switch (this.tokens[0].kind) {                
+                case TokenKind.AddEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable.data +
+                                    +this.tokens[2].literal).toString()));
+                    break;
+                case TokenKind.SubEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable.data -
+                                    +this.tokens[2].literal).toString()));
+                    break;
+                case TokenKind.MulEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable.data *
+                                    +this.tokens[2].literal).toString()));
+                    break;
+                case TokenKind.DivEq:
+                    GlobalVarMap.set(this.tokens[1].literal, 
+                        new Variable(TokenKind.Num, 
+                                    (+variable.data /
+                                    +this.tokens[2].literal).toString()));
+                    break;
+            }
         }
 
         console.log(GlobalVarMap)
@@ -392,15 +422,17 @@ function main() {
 
     const allContents = fs.readFileSync(args[2], "utf-8");
     allContents.split(/\r?\n/).forEach((line) => {
-        let lexer = new Lexer(line);
-        lexer.lex();
-        console.log(lexer.tokens);
+        if (line.length > 0) {
+            let lexer = new Lexer(line);
+            lexer.lex();
+            console.log(lexer.tokens);
 
-        let parser = new Parser(lexer.tokens);
-        parser.parse();
+            let parser = new Parser(lexer.tokens);
+            parser.parse();
 
-        let interpreter = new Interpreter(parser.tokens);
-        interpreter.interpret();
+            let interpreter = new Interpreter(parser.tokens);
+            interpreter.interpret();
+        }
     });
 }
 
