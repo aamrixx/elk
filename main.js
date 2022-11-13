@@ -1,6 +1,11 @@
+const fs = require("fs");
+
 const TokenKind = {
-    Iden: 'Iden',
-    Num: 'Num',
+    Iden: "Iden",
+    Num: "Num",
+
+    Define: "Define",
+
     Add: '+',
     Sub: '-',
     Mul: '*',
@@ -54,6 +59,8 @@ class Lexer {
         switch (s) {
             case "":
                 return new Token(null, "");
+            case "define":
+                return new Token(TokenKind.Define, "define");
             default:
                 if (!isNaN(s)) {
                     return new Token(TokenKind.Num, s);
@@ -94,29 +101,78 @@ class Parser {
         this.tokens = tokens;
     }
 
-    parse() {
-        switch (this.tokens[0]) {
+    #parse_math() {
+        if (this.tokens.length !== 3) {
+            throw "Invalid maths expression";
+        }
 
+        if (this.tokens[1].kind !== TokenKind.Num ||
+            this.tokens[2].kind !== TokenKind.Num) {
+            throw "Invalid number in maths expression";
+        }
+    }
+
+    #parse_define() {
+
+    }
+
+    parse() {
+        switch (this.tokens[0].kind) {
+            case TokenKind.Define:
+                this.#parse_define();
+                break;
+            case TokenKind.Add:
+            case TokenKind.Sub:
+            case TokenKind.Mul:
+            case TokenKind.Div:
+                this.#parse_math();    
+                break; 
+        }
+    }
+}
+
+class Interpreter {
+    constructor(tokens) {
+        this.tokens = tokens;
+    }
+
+    interpret() {
+        switch (this.tokens[0].kind) {
+            case TokenKind.Add:
+                console.log(+this.tokens[1].literal + +this.tokens[2].literal);
+                break;
+            case TokenKind.Sub:
+                console.log(+this.tokens[1].literal - +this.tokens[2].literal);
+                break;
+            case TokenKind.Mul:
+                console.log(+this.tokens[1].literal * +this.tokens[2].literal);
+                break;
+            case TokenKind.Div:
+                console.log(+this.tokens[1].literal / +this.tokens[2].literal);
+                break;
         }
     }
 }
 
 function main() {
-    let lexer = new Lexer("+ 2 2");
-    lexer.lex();
-    console.log(lexer.tokens);
+    const args = process.argv;
 
-    lexer = new Lexer("- 4 2");
-    lexer.lex();
-    console.log(lexer.tokens);
+    if (args.length != 3) {
+        throw "usage : [js runtime] main.js [elk file]";
+    }
 
-    lexer = new Lexer("* 2 2");
-    lexer.lex();
-    console.log(lexer.tokens);
+    const allContents = fs.readFileSync(args[2], "utf-8");
+    allContents.split(/\r?\n/).forEach((line) => {
+        let lexer = new Lexer(line);
+        lexer.lex();
+        console.log(lexer.tokens);
 
-    lexer = new Lexer("/ 6 12");
-    lexer.lex();
-    console.log(lexer.tokens);
+        let parser = new Parser(lexer.tokens);
+        parser.parse();
+
+        let interpreter = new Interpreter(parser.tokens);
+        interpreter.interpret();
+    });
 }
 
 main();
