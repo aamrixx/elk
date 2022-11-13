@@ -28,6 +28,10 @@ class Lexer {
     }
 
     #lex_symbol(c) {
+        if (typeof(c) != "string") {
+            throw "lex_symbol expected a string";
+        }
+
         switch (c) {
             case '+':
                 return new Token(TokenKind.Add, "+");
@@ -44,7 +48,7 @@ class Lexer {
 
     #lex_keyword(s) {
         if (typeof(s) != "string") {
-            throw "lex_keyword expected a string but got ", typeof(s);
+            throw "lex_keyword expected a string";
         }
 
         switch (s) {
@@ -76,7 +80,6 @@ class Lexer {
                 let keyword = this.#lex_keyword(buffer);
                 
                 if (keyword.kind != null) {
-                    console.log("wtf");
                     this.tokens.push(keyword);
                 }
             }
@@ -86,10 +89,33 @@ class Lexer {
     }
 }
 
-function main() {
-    const lexer = new Lexer("+ 2 2");
-    lexer.lex();
+class Parser {
+    constructor(tokens) {
+        this.tokens = tokens;
+    }
 
+    parse() {
+        switch (this.tokens[0]) {
+
+        }
+    }
+}
+
+function main() {
+    let lexer = new Lexer("+ 2 2");
+    lexer.lex();
+    console.log(lexer.tokens);
+
+    lexer = new Lexer("- 4 2");
+    lexer.lex();
+    console.log(lexer.tokens);
+
+    lexer = new Lexer("* 2 2");
+    lexer.lex();
+    console.log(lexer.tokens);
+
+    lexer = new Lexer("/ 6 12");
+    lexer.lex();
     console.log(lexer.tokens);
 }
 
