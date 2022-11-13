@@ -9,6 +9,8 @@ const TokenKind = {
     Nil: "Nil",
 
     Define: "Define",
+    And: "And",
+    Or: "Or",
 
     AddEq: "+=",
     Add: '+',
@@ -17,7 +19,15 @@ const TokenKind = {
     MulEq: "*=",
     Mul: '*',
     DivEq: "/=",
-    Div: '/'
+    Div: '/',
+
+    Eq: '=',
+    Not: '!',
+    NotEq: "!=",
+    Gt: '>',
+    Lt: '<',
+    GtEq: ">=",
+    LtEq: "<="
 };
 
 function Token(kind, literal) {
@@ -78,6 +88,7 @@ class Lexer {
                 } else {
                     return new Token(TokenKind.Div, "/");
                 }
+
             case '\'':
                 let buffer = "";
                 this.#advance();
@@ -88,6 +99,31 @@ class Lexer {
                 }
 
                 return new Token(TokenKind.String, buffer);
+
+            case '=':
+                return new Token(TokenKind.Eq, "=");
+            case '!':
+                if (this.#get_next_char() == '=') {
+                    this.#advance();
+                    return new Token(TokenKind.NotEq, "!=");
+                } else {
+                    return new Token(TokenKind.Not, "!");
+                }
+            case '>':
+                if (this.#get_next_char() == '=') {
+                    this.#advance();
+                    return new Token(TokenKind.GtEq, ">=");
+                } else {
+                    return new Token(TokenKind.Gt, ">");
+                }
+            case '<':
+                if (this.#get_next_char() == '=') {
+                    this.#advance();
+                    return new Token(TokenKind.LtEq, "<=");
+                } else {
+                    return new Token(TokenKind.Lt, "<");
+                }
+
             default:
                 return new Token(null, "");
         }
@@ -109,6 +145,10 @@ class Lexer {
                 return new Token(TokenKind.Nil, "NIL");
             case "define":
                 return new Token(TokenKind.Define, "define");
+            case "and":
+                return new Token(TokenKind.And, "and");
+            case "or":
+                return new Token(TokenKind.Or, "or");
             default:
                 if (!isNaN(s)) {
                     return new Token(TokenKind.Num, s);
@@ -278,12 +318,42 @@ class Parser {
         }
 
         if (this.tokens[2].kind != TokenKind.Nil) {
-            GlobalVarMap.set(this.tokens[1].literal, new Variable(this.tokens[2].kind, this.tokens[2].literal));
+            GlobalVarMap.set(this.tokens[1].literal, 
+                new Variable(this.tokens[2].kind, this.tokens[2].literal));
         } else {
-            GlobalVarMap.set(this.tokens[1].literal, new Variable(TokenKind.Num, "0"));
+            GlobalVarMap.set(this.tokens[1].literal, 
+                new Variable(TokenKind.Num, "0"));
         }
 
         console.log(GlobalVarMap);
+    }
+
+    #parse_cond() {
+        for (let i = 1; i < this.tokens.length; i++) {
+            if (this.tokens[i].kind == TokenKind.Iden) {
+                const variable = GlobalVarMap.get(this.tokens[i].literal);
+
+                if (variable == null) {
+                    throw "Undefined variable";
+                }
+
+                this.tokens[i] = new Token(variable.type, variable.data);
+            }
+        }
+
+        for (let i = 0; i < this.tokens.length; i += 3) {
+            if (this.tokens.length % 3) {
+                if (this.tokens[i].kind != TokenKind.And ||
+                    this.tokens[i].kind != TokenKind.Or
+                ) {
+                    throw "Expected and or or";
+                } 
+            }
+            
+            console.log(this.tokens[i]);
+        }
+
+        console.log("NEW : ", this.tokens);
     }
 
     parse() {
@@ -292,8 +362,9 @@ class Parser {
         }
 
         switch (this.tokens[0].kind) {
-            case TokenKind.Print:
-
+            case TokenKind.Eq:
+                this.#parse_cond();
+                break;
             case TokenKind.Define:
                 this.#parse_define();
                 break;
@@ -309,6 +380,8 @@ class Parser {
             case TokenKind.DivEq:
                 this.#parse_math_eq();    
                 break; 
+            default:
+                throw "Unknown token/identifier";
         }
     }
 }
