@@ -126,7 +126,20 @@ class Lexer {
 
             let token = this.#lex_symbol(this.#get_char());
 
-            if (token.kind != null) {
+            if (this.#get_char() == '-' && !isNaN(this.#get_next_char())) {
+                let buffer = "";
+
+                while (this.pos < this.line.length && this.#get_char() != ' ') {
+                    buffer += this.#get_char();
+                    this.#advance();
+                }
+
+                let keyword = this.#lex_keyword(buffer);
+                
+                if (keyword.kind != null) {
+                    this.tokens.push(keyword);
+                }
+            } else if (token.kind != null) {
                 this.tokens.push(token);
             } else {
                 let buffer = "";
