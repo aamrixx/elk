@@ -1,7 +1,5 @@
 # This really workds lol
 
-define string 'Hello World'
-define x NIL
-+= x 2
-+= 2 x
-/= x 2
+define x 2
+
+if = 2 2 and < 1 2 then

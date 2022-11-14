@@ -10,6 +10,7 @@ const TokenKind = {
 
     Define: "Define",
     If: "If",
+    Then: "Then",
     And: "And",
     Or: "Or",
 
@@ -148,6 +149,8 @@ class Lexer {
                 return new Token(TokenKind.Define, "define");
             case "if":
                 return new Token(TokenKind.If, "if");
+            case "then":
+                return new Token(TokenKind.Then, "then")
             case "and":
                 return new Token(TokenKind.And, "and");
             case "or":
@@ -353,6 +356,24 @@ class Parser {
                 i++;
             }
 
+            if (this.tokens[i].kind != TokenKind.Iden &&
+                this.tokens[i].kind != TokenKind.Num &&
+                this.tokens[i].kind != TokenKind.True &&
+                this.tokens[i].kind != TokenKind.False &&
+                this.tokens[i].kind != TokenKind.String &&
+                this.tokens[i].kind != TokenKind.Nil
+            ) {
+                if (this.tokens[i].kind != TokenKind.Eq &&
+                    this.tokens[i].kind != TokenKind.Not &&
+                    this.tokens[i].kind != TokenKind.Gt &&
+                    this.tokens[i].kind != TokenKind.Lt &&
+                    this.tokens[i].kind != TokenKind.GtEq &&
+                    this.tokens[i].kind != TokenKind.LtEq
+                ) {
+                    throw `Invalid data '${this.tokens[i].literal}'`;
+                }
+            }
+
             if (this.tokens[i].kind == TokenKind.Iden) {
                 const variable = GlobalVarMap.get(this.tokens[i].literal);
 
@@ -368,7 +389,25 @@ class Parser {
     }
 
     #parse_if() {
-        for (let i = 1; i < this.tokens.length; i += 3) {
+        if (this.tokens[this.tokens.length - 1].kind != TokenKind.Then) {
+            throw `Expected a 'then' got '${this.tokens[this.tokens.length - 1].literal}'`;
+        }
+
+        for (let i = 1; i < this.tokens.length - 1; i += 3) {
+            if (i > this.tokens.length) {
+                
+            }
+            
+            if (i % 4 == 0) {
+                if (this.tokens[i].kind != TokenKind.And &&
+                    this.tokens[i].kind != TokenKind.Or
+                ) {
+                    if (i > this.tokens.length) {
+                        throw `Expected an and 'or' an or 'got' '${this.tokens[i].literal}'`;
+                    }
+                }
+            }
+
             if (this.tokens[i].kind == TokenKind.And ||
                 this.tokens[i].kind == TokenKind.Or
             ) {
@@ -377,6 +416,7 @@ class Parser {
 
             this.#parse_cond(i, i + 3);
         }
+
     }
 
     parse() {
