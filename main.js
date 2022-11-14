@@ -9,6 +9,7 @@ const TokenKind = {
     Nil: "Nil",
 
     Define: "Define",
+    If: "If",
     And: "And",
     Or: "Or",
 
@@ -145,6 +146,8 @@ class Lexer {
                 return new Token(TokenKind.Nil, "NIL");
             case "define":
                 return new Token(TokenKind.Define, "define");
+            case "if":
+                return new Token(TokenKind.If, "if");
             case "and":
                 return new Token(TokenKind.And, "and");
             case "or":
@@ -231,11 +234,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[1].literal);
 
             if (variable == null) {
-                throw "Undefined variable";
+                throw "Undefined variable '" + this.tokens[1].literal + "'";
             }
 
             if (variable.type != TokenKind.Num) {
-                throw "Mismatched types";
+                throw "Mistmatched types '" + variable.type + "' and '" + this.tokens[2].kind + "'";
             }
 
             this.tokens[1] = new Token(variable.type, variable.data);
@@ -245,11 +248,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[2].literal);
 
             if (variable == null) {
-                throw "Undefined variable";
+                throw "Undefined variable '" + this.tokens[2].literal + "'";
             }
 
             if (variable.type != TokenKind.Num) {
-                throw "Mismatched types";
+                throw "Mistmatched types '" + variable.type + "' and '" + this.tokens[1].kind + "'";
             }
 
             this.tokens[2] = new Token(variable.type, variable.data);
@@ -275,11 +278,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[1].literal);
         
             if (variable == null) {
-                throw "Undefined variable";
+                throw "Undefined variable '" + this.tokens[1].literal + "'";
             }
 
             if (variable.type != this.tokens[2].kind) {
-                throw "Mistmatched types";
+                throw "Mistmatched types '" + variable.type + "' and '" + this.tokens[2].kind + "'";
             }
         } else if (this.tokens[1].kind == TokenKind.Iden && 
                    this.tokens[2].kind == TokenKind.Iden
@@ -287,12 +290,16 @@ class Parser {
             const variable0 = GlobalVarMap.get(this.tokens[1].literal);
             const variable1 = GlobalVarMap.get(this.tokens[2].literal);
 
-            if (variable0 == null || variable1 == null) {
-                throw "Undefined variable";
+            if (variable0 == null) {
+                throw "Undefined variable '" + this.tokens[1].literal + "'";
+            }
+
+            if (variable1 == null) {
+                throw "Undefined variable '" + this.tokens[2].literal + "'";
             }
 
             if (variable0.type != variable1.type) {
-                throw "Mistmatched types";
+                throw "Mistmatched types '" + variable0.type + "' and '" + variable1.type + "'";
             }
         } else {
             throw "Invalid maths assignment expression";
@@ -305,7 +312,7 @@ class Parser {
         }
 
         if (this.tokens[1].kind != TokenKind.Iden) {
-            throw "Invalid name for define statement";
+            throw "Invalid name for define statement '" + this.tokens[1].literal + "'";
         }
 
         if (this.tokens[2].kind != TokenKind.Num &&
@@ -314,7 +321,7 @@ class Parser {
             this.tokens[2].kind != TokenKind.String &&
             this.tokens[2].kind != TokenKind.Nil
         ) {
-            throw "Invalid data given";
+            throw "Invalid data given '" + this.tokens[2].literal + "'";
         }
 
         if (this.tokens[2].kind != TokenKind.Nil) {
@@ -328,32 +335,48 @@ class Parser {
         console.log(GlobalVarMap);
     }
 
-    #parse_cond() {
-        for (let i = 1; i < this.tokens.length; i++) {
+    #parse_cond(start, end) {
+        if (this.tokens[start].kind != TokenKind.Eq &&
+            this.tokens[start].kind != TokenKind.Not &&
+            this.tokens[start].kind != TokenKind.Gt &&
+            this.tokens[start].kind != TokenKind.Lt &&
+            this.tokens[start].kind != TokenKind.GtEq &&
+            this.tokens[start].kind != TokenKind.LtEq
+        ) {
+            throw "Invalid operator '" + this.tokens[start].literal + "'";
+        }
+
+        for (let i = start; i < end; i++) {
+            if (this.tokens[i].kind == TokenKind.And ||
+                this.tokens[i].kind == TokenKind.Or
+            ) {
+                i++;
+            }
+
             if (this.tokens[i].kind == TokenKind.Iden) {
                 const variable = GlobalVarMap.get(this.tokens[i].literal);
 
                 if (variable == null) {
-                    throw "Undefined variable";
+                    throw "Undefined variable '" + this.tokens[i].literal + "'" ;
                 }
 
                 this.tokens[i] = new Token(variable.type, variable.data);
             }
         }
 
-        for (let i = 0; i < this.tokens.length; i += 3) {
-            if (this.tokens.length % 3) {
-                if (this.tokens[i].kind != TokenKind.And ||
-                    this.tokens[i].kind != TokenKind.Or
-                ) {
-                    throw "Expected and or or";
-                } 
-            }
-            
-            console.log(this.tokens[i]);
-        }
-
         console.log("NEW : ", this.tokens);
+    }
+
+    #parse_if() {
+        for (let i = 1; i < this.tokens.length; i += 3) {
+            if (this.tokens[i].kind == TokenKind.And ||
+                this.tokens[i].kind == TokenKind.Or
+            ) {
+                i++;
+            }
+
+            this.#parse_cond(i, i + 3);
+        }
     }
 
     parse() {
@@ -362,8 +385,8 @@ class Parser {
         }
 
         switch (this.tokens[0].kind) {
-            case TokenKind.Eq:
-                this.#parse_cond();
+            case TokenKind.If:
+                this.#parse_if();
                 break;
             case TokenKind.Define:
                 this.#parse_define();
@@ -381,7 +404,7 @@ class Parser {
                 this.#parse_math_eq();    
                 break; 
             default:
-                throw "Unknown token/identifier";
+                throw "Unknown token/identifier '" + this.tokens[0].literal + "'";
         }
     }
 }
