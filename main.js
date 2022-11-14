@@ -234,11 +234,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[1].literal);
 
             if (variable == null) {
-                throw "Undefined variable '" + this.tokens[1].literal + "'";
+                throw `Undefined variable '${this.tokens[1].literal}'`;
             }
 
             if (variable.type != TokenKind.Num) {
-                throw "Mistmatched types '" + variable.type + "' and '" + this.tokens[2].kind + "'";
+                throw `Mistmatched types '${variable.type}' and '${this.tokens[2].kind}'`;
             }
 
             this.tokens[1] = new Token(variable.type, variable.data);
@@ -248,11 +248,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[2].literal);
 
             if (variable == null) {
-                throw "Undefined variable '" + this.tokens[2].literal + "'";
+                throw `Undefined variable '${this.tokens[2].literal}'`;
             }
 
             if (variable.type != TokenKind.Num) {
-                throw "Mistmatched types '" + variable.type + "' and '" + this.tokens[1].kind + "'";
+                throw `Mistmatched types '${variable.type}' and '${this.tokens[1].kind}'`;
             }
 
             this.tokens[2] = new Token(variable.type, variable.data);
@@ -278,11 +278,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[1].literal);
         
             if (variable == null) {
-                throw "Undefined variable '" + this.tokens[1].literal + "'";
+                throw `Undefined variable '${this.tokens[1].literal}'`;
             }
 
             if (variable.type != this.tokens[2].kind) {
-                throw "Mistmatched types '" + variable.type + "' and '" + this.tokens[2].kind + "'";
+                throw `Mistmatched types '${variable.type}' and '${this.tokens[2].kind}'`;
             }
         } else if (this.tokens[1].kind == TokenKind.Iden && 
                    this.tokens[2].kind == TokenKind.Iden
@@ -291,15 +291,15 @@ class Parser {
             const variable1 = GlobalVarMap.get(this.tokens[2].literal);
 
             if (variable0 == null) {
-                throw "Undefined variable '" + this.tokens[1].literal + "'";
+                throw `Undefined variable '${this.tokens[1].literal}'`;
             }
 
             if (variable1 == null) {
-                throw "Undefined variable '" + this.tokens[2].literal + "'";
+                throw `Undefined variable '${this.tokens[2].literal}'`;
             }
 
             if (variable0.type != variable1.type) {
-                throw "Mistmatched types '" + variable0.type + "' and '" + variable1.type + "'";
+                throw `Mistmatched types '${variable0.type}' and '${variable1.type}'`;
             }
         } else {
             throw "Invalid maths assignment expression";
@@ -312,7 +312,7 @@ class Parser {
         }
 
         if (this.tokens[1].kind != TokenKind.Iden) {
-            throw "Invalid name for define statement '" + this.tokens[1].literal + "'";
+            throw `Invalid name for define statement '${this.tokens[1].literal}'`;
         }
 
         if (this.tokens[2].kind != TokenKind.Num &&
@@ -321,7 +321,7 @@ class Parser {
             this.tokens[2].kind != TokenKind.String &&
             this.tokens[2].kind != TokenKind.Nil
         ) {
-            throw "Invalid data given '" + this.tokens[2].literal + "'";
+            throw `Invalid data given '${this.tokens[2].literal}'`;
         }
 
         if (this.tokens[2].kind != TokenKind.Nil) {
@@ -343,7 +343,7 @@ class Parser {
             this.tokens[start].kind != TokenKind.GtEq &&
             this.tokens[start].kind != TokenKind.LtEq
         ) {
-            throw "Invalid operator '" + this.tokens[start].literal + "'";
+            throw `Invalid operator '${this.tokens[start].literal}'`;
         }
 
         for (let i = start; i < end; i++) {
@@ -357,7 +357,7 @@ class Parser {
                 const variable = GlobalVarMap.get(this.tokens[i].literal);
 
                 if (variable == null) {
-                    throw "Undefined variable '" + this.tokens[i].literal + "'" ;
+                    throw `Undefined variable '${this.tokens[i].literal}'` ;
                 }
 
                 this.tokens[i] = new Token(variable.type, variable.data);
@@ -404,7 +404,7 @@ class Parser {
                 this.#parse_math_eq();    
                 break; 
             default:
-                throw "Unknown token/identifier '" + this.tokens[0].literal + "'";
+                throw `Unknown token/identifier '${this.tokens[0].literal}'`;
         }
     }
 }
