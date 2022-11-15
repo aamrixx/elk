@@ -1,4 +1,6 @@
-const fs = require("fs");
+function error(string) {
+    document.getElementById("console").value = `ERROR : ${string}`;
+}
 
 const TokenKind = {
     Iden: "Iden",
@@ -13,6 +15,8 @@ const TokenKind = {
     Then: "Then",
     And: "And",
     Or: "Or",
+
+    Print: "Print",
 
     AddEq: "+=",
     Add: '+',
@@ -58,7 +62,7 @@ class Lexer {
 
     #lex_symbol(c) {
         if (typeof(c) != "string") {
-            throw "lex_symbol expected a string";
+            console.error("lex_symbol expected a string");
         }
 
         switch (c) {
@@ -133,7 +137,7 @@ class Lexer {
 
     #lex_keyword(s) {
         if (typeof(s) != "string") {
-            throw "lex_keyword expected a string";
+            console.error("lex_keyword expected a string");
         }
 
         switch (s) {
@@ -147,14 +151,16 @@ class Lexer {
                 return new Token(TokenKind.Nil, "NIL");
             case "define":
                 return new Token(TokenKind.Define, "define");
-            case "if":
+            case "print":
+                return new Token(TokenKind.Print, "print");
+            /*case "if":
                 return new Token(TokenKind.If, "if");
             case "then":
                 return new Token(TokenKind.Then, "then")
             case "and":
                 return new Token(TokenKind.And, "and");
             case "or":
-                return new Token(TokenKind.Or, "or");
+                return new Token(TokenKind.Or, "or");*/
             default:
                 if (!isNaN(s)) {
                     return new Token(TokenKind.Num, s);
@@ -220,7 +226,7 @@ class Parser {
 
     #parse_math() {
         if (this.tokens.length != 3) {
-            throw "Invalid maths expression";
+            error("Invalid maths expression");
         }
 
         if (this.tokens[1].kind != TokenKind.Num ||
@@ -229,7 +235,7 @@ class Parser {
             if (this.tokens[1].kind != TokenKind.Iden &&
                 this.tokens[2].kind != TokenKind.Iden
             ) {
-                throw "Invalid number/identifer in maths expression";
+                error("Invalid number/identifer in maths expression");
             }
         }
 
@@ -237,11 +243,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[1].literal);
 
             if (variable == null) {
-                throw `Undefined variable '${this.tokens[1].literal}'`;
+                error(`Undefined variable '${this.tokens[1].literal}'`);
             }
 
             if (variable.type != TokenKind.Num) {
-                throw `Mistmatched types '${variable.type}' and '${this.tokens[2].kind}'`;
+                error(`Mistmatched types '${variable.type}' and '${this.tokens[2].kind}'`);
             }
 
             this.tokens[1] = new Token(variable.type, variable.data);
@@ -251,11 +257,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[2].literal);
 
             if (variable == null) {
-                throw `Undefined variable '${this.tokens[2].literal}'`;
+                error(`Undefined variable '${this.tokens[2].literal}'`);
             }
 
             if (variable.type != TokenKind.Num) {
-                throw `Mistmatched types '${variable.type}' and '${this.tokens[1].kind}'`;
+                error(`Mistmatched types '${variable.type}' and '${this.tokens[1].kind}'`);
             }
 
             this.tokens[2] = new Token(variable.type, variable.data);
@@ -264,14 +270,14 @@ class Parser {
 
     #parse_math_eq() {
         if (this.tokens.length != 3) {
-            throw "Invalid maths assignment expression";
+            error("Invalid maths assignment expression");
         }
 
         if (this.tokens[1].kind != TokenKind.Iden ||
             this.tokens[2].kind != TokenKind.Num 
         ) {
             if (this.tokens[2].kind != TokenKind.Iden) {
-                throw "Invalid number/identifer in maths assignment expression";
+                error("Invalid number/identifer in maths assignment expression");
             }
         }
 
@@ -281,11 +287,11 @@ class Parser {
             const variable = GlobalVarMap.get(this.tokens[1].literal);
         
             if (variable == null) {
-                throw `Undefined variable '${this.tokens[1].literal}'`;
+                error(`Undefined variable '${this.tokens[1].literal}'`);
             }
 
             if (variable.type != this.tokens[2].kind) {
-                throw `Mistmatched types '${variable.type}' and '${this.tokens[2].kind}'`;
+                error(`Mistmatched types '${variable.type}' and '${this.tokens[2].kind}'`);
             }
         } else if (this.tokens[1].kind == TokenKind.Iden && 
                    this.tokens[2].kind == TokenKind.Iden
@@ -294,45 +300,61 @@ class Parser {
             const variable1 = GlobalVarMap.get(this.tokens[2].literal);
 
             if (variable0 == null) {
-                throw `Undefined variable '${this.tokens[1].literal}'`;
+                error(`Undefined variable '${this.tokens[1].literal}'`);
             }
 
             if (variable1 == null) {
-                throw `Undefined variable '${this.tokens[2].literal}'`;
+                error(`Undefined variable '${this.tokens[2].literal}'`);
             }
 
             if (variable0.type != variable1.type) {
-                throw `Mistmatched types '${variable0.type}' and '${variable1.type}'`;
+                error(`Mistmatched types '${variable0.type}' and '${variable1.type}'`);
             }
         } else {
-            throw "Invalid maths assignment expression";
+            error("Invalid maths assignment expression");
         }
     }
 
     #parse_define() {
         if (this.tokens.length !== 3) {
-            throw "Invalid define statement";
+            error("Invalid define statement");
         }
 
         if (this.tokens[1].kind != TokenKind.Iden) {
-            throw `Invalid name for define statement '${this.tokens[1].literal}'`;
+            error(`Invalid name for define statement '${this.tokens[1].literal}'`);
         }
 
-        if (this.tokens[2].kind != TokenKind.Num &&
-            this.tokens[2].kind != TokenKind.True &&
-            this.tokens[2].kind != TokenKind.False &&
-            this.tokens[2].kind != TokenKind.String &&
-            this.tokens[2].kind != TokenKind.Nil
-        ) {
-            throw `Invalid data given '${this.tokens[2].literal}'`;
+        if (this.tokens[2].kind == TokenKind.Iden) {
+            const variable = GlobalVarMap.get(this.tokens[2].literal);
+
+            if (variable == null) {
+                error(`Undefined variable '${this.tokens[2].literal}'`);
+            }
+
+            if (variable.type != TokenKind.Num &&
+                variable.type != TokenKind.True &&
+                variable.type != TokenKind.False &&
+                variable.type != TokenKind.String
+            ) {
+                error(`Invalid data given '${this.tokens[2].literal}'`);
+            }
         }
 
-        if (this.tokens[2].kind != TokenKind.Nil) {
-            GlobalVarMap.set(this.tokens[1].literal, 
-                new Variable(this.tokens[2].kind, this.tokens[2].literal));
-        } else {
+        if (this.tokens[2].kind == TokenKind.Nil) {
             GlobalVarMap.set(this.tokens[1].literal, 
                 new Variable(TokenKind.Num, "0"));
+        } else if (this.tokens[2].kind == TokenKind.Iden) {
+            const variable = GlobalVarMap.get(this.tokens[2].literal);
+
+            if (variable == null) {
+                error(`Undefined variable '${this.tokens[2].literal}'`);
+            }
+
+            GlobalVarMap.set(this.tokens[1].literal, 
+                new Variable(variable.type, variable.data));
+        } else {
+            GlobalVarMap.set(this.tokens[1].literal, 
+                new Variable(this.tokens[2].kind, this.tokens[2].literal));
         }
 
         console.log(GlobalVarMap);
@@ -346,7 +368,7 @@ class Parser {
             this.tokens[start].kind != TokenKind.GtEq &&
             this.tokens[start].kind != TokenKind.LtEq
         ) {
-            throw `Invalid operator '${this.tokens[start].literal}'`;
+            error(`Invalid operator '${this.tokens[start].literal}'`);
         }
 
         for (let i = start; i < end; i++) {
@@ -370,7 +392,7 @@ class Parser {
                     this.tokens[i].kind != TokenKind.GtEq &&
                     this.tokens[i].kind != TokenKind.LtEq
                 ) {
-                    throw `Invalid data '${this.tokens[i].literal}'`;
+                    error(`Invalid data '${this.tokens[i].literal}'`);
                 }
             }
 
@@ -378,7 +400,7 @@ class Parser {
                 const variable = GlobalVarMap.get(this.tokens[i].literal);
 
                 if (variable == null) {
-                    throw `Undefined variable '${this.tokens[i].literal}'` ;
+                    error(`Undefined variable '${this.tokens[i].literal}'`);
                 }
 
                 this.tokens[i] = new Token(variable.type, variable.data);
@@ -390,7 +412,7 @@ class Parser {
 
     #parse_if() {
         if (this.tokens[this.tokens.length - 1].kind != TokenKind.Then) {
-            throw `Expected a 'then' got '${this.tokens[this.tokens.length - 1].literal}'`;
+            error(`Expected a 'then' got '${this.tokens[this.tokens.length - 1].literal}'`);
         }
 
         for (let i = 1; i < this.tokens.length - 1; i += 3) {
@@ -403,7 +425,7 @@ class Parser {
                     this.tokens[i].kind != TokenKind.Or
                 ) {
                     if (i > this.tokens.length) {
-                        throw `Expected an and 'or' an or 'got' '${this.tokens[i].literal}'`;
+                        error(`Expected an and 'or' an or 'got' '${this.tokens[i].literal}'`);
                     }
                 }
             }
@@ -419,6 +441,23 @@ class Parser {
 
     }
 
+    #parse_print() {
+        if (this.tokens.length != 2) {
+            error("Invalid print statement only 1 argument needed");
+        }
+
+        if (this.tokens[1].kind == TokenKind.Iden) {
+            const variable = GlobalVarMap.get(this.tokens[1].literal);
+
+            if (variable == null) {
+                error(`Undefined variable '${this.tokens[1].literal}'`);
+            }
+
+            this.tokens.pop();
+            this.tokens.push(new Token(variable.type, variable.data));
+        }
+    }
+
     parse() {
         if (this.tokens.length == 0) {
             return;
@@ -430,6 +469,9 @@ class Parser {
                 break;
             case TokenKind.Define:
                 this.#parse_define();
+                break;
+            case TokenKind.Print:
+                this.#parse_print();
                 break;
             case TokenKind.Add:
             case TokenKind.Sub:
@@ -444,7 +486,7 @@ class Parser {
                 this.#parse_math_eq();    
                 break; 
             default:
-                throw `Unknown token/identifier '${this.tokens[0].literal}'`;
+                error(`Unknown token/identifier '${this.tokens[0].literal}'`);
         }
     }
 }
@@ -539,19 +581,28 @@ class Interpreter {
         console.log(GlobalVarMap)
     }
 
+    #interpret_print() {
+        document.getElementById("console").value = "balls";
+        document.getElementById("console").value = this.tokens[1].literal.toString();
+        //console.log(document.getElementById("console").value);
+    }
+
     interpret() {
         if (this.tokens.length == 0) {
             return;
         }
 
         switch (this.tokens[0].kind) {
+            case TokenKind.Print:
+                document.getElementById("console").value = "balls";
+                this.#interpret_print();
+                break;
             case TokenKind.AddEq:
             case TokenKind.SubEq:
             case TokenKind.MulEq:
             case TokenKind.DivEq:
                 this.#interpret_math_eq();
                 break;
-                
             case TokenKind.Add:
             case TokenKind.Sub:
             case TokenKind.Mul:
@@ -563,15 +614,10 @@ class Interpreter {
 }
 
 function main() {
-    const args = process.argv;
-
-    if (args.length != 3) {
-        throw "usage : [js runtime] main.js [elk file]";
-    }
-
-    const allContents = fs.readFileSync(args[2], "utf-8");
-    allContents.split(/\r?\n/).forEach((line) => {
+    document.getElementById("source").value.split(/\r?\n/).forEach((line) => {
         if (line.length > 0) {
+            document.getElementById("console").value = "";
+
             let lexer = new Lexer(line);
             lexer.lex();
             console.log(lexer.tokens);
@@ -584,5 +630,3 @@ function main() {
         }
     });
 }
-
-main();
