@@ -10,7 +10,26 @@ textarea {
     color: #dddddd;
 }
 
+button {
+    background-color: #111111;
+    border: none;
+    color: #ffffff;
+    height: 32px;
+    width: 32px;
+}  
+
 a {
 	color: #aaaaff;
 	text-decoration-style: solid;
 }
+
+.play {
+    color: #aaddaa;
+    font-size: medium;
+}
+
+.floppy {
+    color: #aaaadd;
+    font-size: large;
+}
+
